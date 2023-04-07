@@ -3,15 +3,15 @@
 
   outputs = { self }: {
     templates = {
-      simple = {
-        path = ./simple;
-        description = "Hello world of flakes";
+      default = {
+        path = ./default;
+        description = "Default flake template";
       };
       rust = {
         path = ./rust;
-        description = "A rust flake template";
+        description = "Rust flake template";
       };
     };
-    defaultTemplate = self.templates.simple;
+    defaultTemplate = self.templates.default;
   };
 }
