@@ -7,22 +7,16 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        postgres = {
-          version = "15.0";
-          port = 5432;
-          user = "postgres";
-        };
-
+        versions = { postgres = "15.0"; };
         packages = with pkgs; [ postgresql ];
-        shellHook = ''
-          local state_dir="$PWD/.devshell"
-          export PGDATA="$state_dir/postgresql"
-          export PGLOG="$PGDATA/logfile"
-          export PGPORT=${toString postgres.port}
-          export PGUSER="${postgres.user}"
-        '';
-
-        scripts = toBinScripts {
+        envVarDefaults = {
+          DEVSHELL_DIR = "$PWD/.devshell";
+          PGDATA = "$DEVSHELL_DIR/postgresql";
+          PGLOG = "$PGDATA/logfile";
+          PGPORT = "5432";
+          PGUSER = "postgres";
+        };
+        scripts = {
           setup = ''
             pg_ctl init -o "-U $PGUSER" -o '--auth=trust'
             echo "port = $PGPORT" >> "$PGDATA/postgresql.conf"
@@ -41,7 +35,7 @@
             postgresql = super.postgresql.overrideAttrs (prev: {
               src = fetchTarball {
                 url = "https://ftp.postgresql.org/pub/source"
-                  + "/v${postgres.version}/postgresql-${postgres.version}.tar.gz";
+                  + "/v${versions.postgres}/postgresql-${versions.postgres}.tar.gz";
                 sha256 = pkgs.lib.fakeSha256;
               };
             });
@@ -51,10 +45,16 @@
           builtins.attrValues
           (builtins.mapAttrs (name: text: (pkgs.writeShellScriptBin name text))
             scripts);
+        setEnvVarsIfUnset = set:
+          builtins.concatStringsSep "\n" (builtins.attrValues (builtins.mapAttrs
+            (name: value: ''export ${name}=''${${name}:="${value}"}'') set));
       in {
         devShells.default = pkgs.mkShellNoCC {
-          inherit shellHook;
-          buildInputs = packages ++ scripts;
+          buildInputs = packages ++ (toBinScripts scripts);
+          shellHook = ''
+            source .env 2> /dev/null || true
+            ${setEnvVarsIfUnset envVarDefaults}
+          '';
         };
       });
 }
