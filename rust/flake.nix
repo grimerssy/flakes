@@ -8,7 +8,6 @@
   outputs = { self, nixpkgs, rust-overlay, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        rustVersion = "latest";
         buildInputs = with pkgs; [ rust ];
 
         pkgs = import nixpkgs { inherit system overlays; };
@@ -17,7 +16,7 @@
             rust = (import nixpkgs {
               inherit system;
               overlays = [ (import rust-overlay) ];
-            }).rust-bin.stable.${rustVersion}.default.override {
+            }).rust-bin.stable.latest.default.override {
               extensions = [ "rust-src" ];
             };
           })

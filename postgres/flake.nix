@@ -7,7 +7,6 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        versions = { postgres = "15.0"; };
         packages = with pkgs; [ postgresql ];
         envVarDefaults = {
           DEVSHELL_DIR = "$PWD/.devshell";
@@ -30,17 +29,7 @@
         };
 
         pkgs = import nixpkgs { inherit system overlays; };
-        overlays = [
-          (self: super: {
-            postgresql = super.postgresql.overrideAttrs (prev: {
-              src = fetchTarball {
-                url = "https://ftp.postgresql.org/pub/source"
-                  + "/v${versions.postgres}/postgresql-${versions.postgres}.tar.gz";
-                sha256 = pkgs.lib.fakeSha256;
-              };
-            });
-          })
-        ];
+        overlays = [ ];
         toBinScripts = scripts:
           builtins.attrValues
           (builtins.mapAttrs (name: text: (pkgs.writeShellScriptBin name text))
@@ -52,7 +41,6 @@
         devShells.default = pkgs.mkShellNoCC {
           buildInputs = packages ++ (toBinScripts scripts);
           shellHook = ''
-            source .env 2> /dev/null || true
             ${setEnvVarsIfUnset envVarDefaults}
           '';
         };
