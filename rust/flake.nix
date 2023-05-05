@@ -17,7 +17,7 @@
         };
         devShells.default = pkgs.mkShellNoCC {
           inherit buildInputs nativeBuildInputs;
-          packages = with pkgs; [ rust-toolchain ];
+          packages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
         };
         buildInputs = with pkgs; [ openssl ];
         nativeBuildInputs = with pkgs;
