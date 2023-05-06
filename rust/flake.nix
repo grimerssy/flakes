@@ -15,10 +15,7 @@
             src = ./.;
           };
         };
-        devShells.default = pkgs.mkShellNoCC {
-          inherit buildInputs nativeBuildInputs;
-          packages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
-        };
+        devPackages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
         buildInputs = with pkgs; [ openssl ];
         nativeBuildInputs = with pkgs;
           [ pkg-config ] ++ lib.optionals stdenv.isDarwin
@@ -35,6 +32,10 @@
             rust-toolchain = super.rust-bin.stable.latest.default;
           })
         ];
+        devShells.default = pkgs.mkShellNoCC {
+          inherit buildInputs nativeBuildInputs;
+          packages = devPackages;
+        };
         naersk' = pkgs.callPackage naersk rec {
           cargo = rustc;
           rustc = pkgs.rust-toolchain;
