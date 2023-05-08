@@ -9,38 +9,58 @@
   outputs = { self, nixpkgs, naersk, rust-overlay, flake-utils }:
     let
       forEachSystem = system: rec {
-        packages = {
-          default = naersk'.buildPackage {
-            inherit buildInputs nativeBuildInputs;
-            src = ./.;
+        # ci/cd
+        app = naersk'.buildPackage {
+          inherit buildInputs nativeBuildInputs;
+          src = ./.;
+        };
+        scripts = {
+          test = ''
+            nix-shell -p cargo --command 'cargo test'
+          '';
+          lint = ''
+            nix-shell -p cargo clippy rustfmt --command \
+            'cargo clippy -- -D warnings && cargo fmt --all --check'
+          '';
+        };
+        # dev shell
+        dev = {
+          packages = with pkgs; [
+            rust-toolchain
+            cargo-edit
+            cargo-nextest
+            postgresql
+            redis
+          ];
+          scripts = {
+            setup = ''
+              pg_ctl init -o "-U $PGUSER" -o '--auth=trust'
+              echo "port = $PGPORT" >> "$PGDATA/postgresql.conf"
+              mkdir -p "$REDIS_DATA"
+            '';
+            up = ''
+              pg_ctl start -l "$PGLOG"
+              redis-server --daemonize yes --dir "$REDIS_DATA" --port "$REDIS_PORT"
+            '';
+            down = ''
+              pg_ctl stop 
+              redis-cli -p "$REDIS_PORT" shutdown
+            '';
+            redis = ''
+              redis-cli -p "$REDIS_PORT"
+            '';
+          };
+          envVarDefaults = {
+            DEVSHELL_DIR = "$PWD/.devshell";
+            PGDATA = "$DEVSHELL_DIR/postgresql";
+            PGLOG = "$PGDATA/logfile";
+            PGPORT = "5432";
+            PGUSER = "postgres";
+            REDIS_DATA = "$DEVSHELL_DIR/redis";
+            REDIS_PORT = "6379";
           };
         };
-        devPackages = with pkgs; [
-          rust-toolchain
-          cargo-edit
-          cargo-nextest
-          postgresql
-          redis
-        ];
-        scripts = {
-          setup = ''
-            pg_ctl init -o "-U $PGUSER" -o '--auth=trust'
-            echo "port = $PGPORT" >> "$PGDATA/postgresql.conf"
-            mkdir -p "$REDIS_DATA"
-          '';
-          up = ''
-            pg_ctl start -l "$PGLOG"
-            redis-server --daemonize yes --dir "$REDIS_DATA" --port "$REDIS_PORT"
-          '';
-          down = ''
-            pg_ctl stop 
-            redis-cli -p "$REDIS_PORT" shutdown
-          '';
-          redis = ''
-            redis-cli -p "$REDIS_PORT"
-          '';
-        };
-
+        # dependencies
         buildInputs = with pkgs; [ openssl ];
         nativeBuildInputs = with pkgs;
           [ pkg-config ] ++ lib.optionals stdenv.isDarwin
@@ -49,16 +69,7 @@
             Security
             SystemConfiguration
           ]);
-        envVarDefaults = {
-          DEVSHELL_DIR = "$PWD/.devshell";
-          PGDATA = "$DEVSHELL_DIR/postgresql";
-          PGLOG = "$PGDATA/logfile";
-          PGPORT = "5432";
-          PGUSER = "postgres";
-          REDIS_DATA = "$DEVSHELL_DIR/redis";
-          REDIS_PORT = "6379";
-        };
-
+        # boilerplate
         pkgs = import nixpkgs { inherit system overlays; };
         overlays = [
           (import rust-overlay)
@@ -66,11 +77,13 @@
             rust-toolchain = super.rust-bin.stable.latest.default;
           })
         ];
+        packages = { default = app; } // (toBinScripts scripts);
         devShells.default = pkgs.mkShellNoCC {
           inherit buildInputs nativeBuildInputs;
-          packages = devPackages ++ (toBinScripts scripts);
+          packages = dev.packages
+            ++ builtins.attrValues (toBinScripts dev.scripts);
           shellHook = ''
-            ${setEnvVarsIfUnset envVarDefaults}
+            ${setEnvVarsIfUnset dev.envVarDefaults}
           '';
         };
         naersk' = pkgs.callPackage naersk rec {
@@ -78,7 +91,6 @@
           rustc = pkgs.rust-toolchain;
         };
         toBinScripts = scripts:
-          builtins.attrValues
           (builtins.mapAttrs (name: text: (pkgs.writeShellScriptBin name text))
             scripts);
         setEnvVarsIfUnset = set:

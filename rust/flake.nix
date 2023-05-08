@@ -9,13 +9,27 @@
   outputs = { self, nixpkgs, naersk, rust-overlay, flake-utils }:
     let
       forEachSystem = system: rec {
-        packages = {
-          default = naersk'.buildPackage {
-            inherit buildInputs nativeBuildInputs;
-            src = ./.;
-          };
+        # ci/cd
+        app = naersk'.buildPackage {
+          inherit buildInputs nativeBuildInputs;
+          src = ./.;
         };
-        devPackages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
+        scripts = {
+          test = ''
+            nix-shell -p cargo --command 'cargo test'
+          '';
+          lint = ''
+            nix-shell -p cargo clippy rustfmt --command \
+            'cargo clippy -- -D warnings && cargo fmt --all --check'
+          '';
+        };
+        # dev shell
+        dev = {
+          packages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
+          scripts = { };
+          envVarDefaults = { };
+        };
+        # dependencies
         buildInputs = with pkgs; [ openssl ];
         nativeBuildInputs = with pkgs;
           [ pkg-config ] ++ lib.optionals stdenv.isDarwin
@@ -24,22 +38,33 @@
             Security
             SystemConfiguration
           ]);
-
+        # boilerplate
         pkgs = import nixpkgs { inherit system overlays; };
         overlays = [
           (import rust-overlay)
           (self: super: {
-            rust-toolchain = super.rust-bin.stable.latest.default;
+            rust-toolchain = super.rust-bin.stable.latest.minimal;
           })
         ];
+        packages = { default = app; } // (toBinScripts scripts);
         devShells.default = pkgs.mkShellNoCC {
           inherit buildInputs nativeBuildInputs;
-          packages = devPackages;
+          packages = dev.packages
+            ++ builtins.attrValues (toBinScripts dev.scripts);
+          shellHook = ''
+            ${setEnvVarsIfUnset dev.envVarDefaults}
+          '';
         };
         naersk' = pkgs.callPackage naersk rec {
           cargo = rustc;
           rustc = pkgs.rust-toolchain;
         };
+        toBinScripts = scripts:
+          (builtins.mapAttrs (name: text: (pkgs.writeShellScriptBin name text))
+            scripts);
+        setEnvVarsIfUnset = set:
+          builtins.concatStringsSep "\n" (builtins.attrValues (builtins.mapAttrs
+            (name: value: ''export ${name}=''${${name}:="${value}"}'') set));
       };
     in flake-utils.lib.eachDefaultSystem forEachSystem;
 }
