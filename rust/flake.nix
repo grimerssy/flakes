@@ -43,7 +43,7 @@
         overlays = [
           (import rust-overlay)
           (self: super: {
-            rust-toolchain = super.rust-bin.stable.latest.minimal;
+            rust-toolchain = super.rust-bin.stable.latest.default;
           })
         ];
         packages = { default = app; } // (toBinScripts scripts);
