@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      target: debug
+    ports:
+      - 8080:8080
+    stop_grace_period: 0s
+
+  test:
+    build: 
+      context: .
+      target: test
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles: 
+      - test
