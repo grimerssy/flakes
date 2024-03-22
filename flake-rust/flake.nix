@@ -8,19 +8,15 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system overlays; };
-        overlays = [
-          (import rust-overlay)
-          (self: super: {
-            rust-toolchain = super.rust-bin.stable.latest.default;
-          })
-        ];
-      in {
+        overlays = [ (import rust-overlay) ];
+      in
+      {
         devShells.default = pkgs.mkShellNoCC {
-          packages = with pkgs; [ rust-toolchain cargo-edit cargo-nextest ];
-          buildInputs = [ ];
-          nativeBuildInputs = with pkgs;
-            [ ] ++ lib.optionals stdenv.isDarwin
-            (with darwin.apple_sdk.frameworks; [ SystemConfiguration ]);
+          packages = with pkgs; [
+            (rust-bin.stable."1.75.0".default.override {
+              extensions = [ "rust-src" "clippy" "rust-analyzer" ];
+            })
+          ];
         };
       });
 }
