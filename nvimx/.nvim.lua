@@ -5,19 +5,31 @@ end
 
 local servers = {}
 
-for server, override in pairs(servers) do
-    local config = override
-    if lspconfig[server].manager then
-        local existing_config = lspconfig[server].manager.config
-        config = vim.tbl_deep_extend("force", existing_config, override)
-        for _, cb in ipairs({ "on_init", "on_attach" }) do
-            if existing_config[cb] and override[cb] then
-                config[cb] = function(...)
-                    existing_config[cb](...)
-                    override[cb](...)
-                end
-            end
+--- @return unknown
+local function extend_config(old, new)
+    if type(new) ~= "table" then
+        return new
+    end
+    if new._append then
+        for _, v in ipairs(new._append) do
+            table.insert(old, v)
+        end
+        return old
+    end
+    if new._compose then
+        return function(...)
+            old(...)
+            return new._compose(...)
         end
     end
+    for k in pairs(new) do
+        old[k] = extend_config(old[k], new[k])
+    end
+    return old
+end
+
+for server, override in pairs(servers) do
+    local manager = lspconfig[server].manager or {}
+    local config = extend_config(manager.config or {}, override)
     lspconfig[server].setup(config)
 end
