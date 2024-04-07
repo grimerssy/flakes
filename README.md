@@ -1,37 +1,41 @@
 # What
 
-This is a repository containing a collection of [Nix](https://nixos.org) flakes, which can be used as templates for your projects.
+This is a repository containing a collection of
+[Nix](https://nixos.org)
+[flakes](https://nixos.wiki/wiki/Flakes),
+which can be used as templates for your projects.
 
 > :information_source: **Some templates can be used without Nix.**
 > 
-> Not all the featured templates are [flakes](https://nixos.wiki/wiki/Flakes) and can be used without an installation of Nix.
-> Example of that are templates for [docker compose](https://github.com/docker/compose).
+> Only the templates located under `./nix` are Nix flakes
 
 # How
 
-## Cli
-In order to use the cli to apply templates, you need nix installed.
-You can use either of the following installers
+## Nix CLI
+First, you need Nix installed. You can use either one of the following installers:
 - [Official](https://nixos.org/download)
 - [DeterminateSystems](https://github.com/DeterminateSystems/nix-installer)
 
-### New project 
-To create a new project based on a given template, run
-```
-nix flake new --template github:grimerssy/flakes#${template} ${project_name}
-```
-where `${template}` is the name of the directory in this repository which should be used as a template
-and `${project_name}` is the name of the new project
-(a directory with this name will be created with the contents of chosen template inside).
+To learn how to use Nix to apply these templates, see
+[nix flake new](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake-new)
+and
+[nix flake init](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake-init).
 
-### Existing project
-If you already have a project and want to apply a template to it, run
+Templates in this repository are divided into "collections" and can be referenced with
 ```
-nix flake init --template github:grimerssy/flakes#${template}
+--template github:grimerssy/flakes#${collection}.${template}
 ```
-where `${template}` is the name of the directory in this repository which should be used as a template.
+where `${collection}` is any directory in the root of this repository
+and `${template}` is a subdirectory inside the collection.
+
+For example, to use the template located at `./nix/empty`, you can run
+```
+nix flake init --template github:grimerssy/flakes#nix.empty
+```
 
 ## Manual
-As was mentioned above, some templates can be used without Nix.
-In case of using them, Nix serves only for convenience of applying templates.
-If you don't have Nix installed on your current machine, you can manually copy the files to your projects.
+Nix helps with copying the files, but some templates can still be used without it.
+If you don't have Nix installed, you can use `cp` command or your file manager to copy.
+```
+cp -r /path/to/template/* .
+```
